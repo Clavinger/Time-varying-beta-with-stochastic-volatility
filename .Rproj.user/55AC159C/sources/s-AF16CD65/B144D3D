@@ -5,15 +5,15 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "0",
+    "hash" : "2169582575",
     "id" : "B144D3D",
-    "lastKnownWriteTime" : 1526644483,
-    "last_content_update" : 1526644483021,
+    "lastKnownWriteTime" : 1526667709,
+    "last_content_update" : 1526667710017,
     "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/beta sv model.R",
     "project_path" : "Skrypty do R/beta sv model.R",
     "properties" : {
-        "cursorPosition" : "96,0",
-        "scrollLine" : "88"
+        "cursorPosition" : "414,7",
+        "scrollLine" : "401"
     },
     "relative_order" : 1,
     "source_on_save" : false,

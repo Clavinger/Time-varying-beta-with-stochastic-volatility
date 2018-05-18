@@ -242,9 +242,239 @@ params_nowe2<- c(
 
 pf1 <- pfilter(beta.filt,params=params_nowe2,
                Np=betalist[[1]][run_level],filter.traj=T)
-plot(pf1)
-par(mfrow=c(1,1))
+
+wersja1=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
+wersja1=as.xts(wersja1,order.by = index(x))
+length(wersja1)
+
 plot(exp(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])]/2),type='l')
 plot(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="H")
 plot(pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="Beta")
-wersja1=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
+ 
+par(mfrow=c(3,1))
+plot(x,main='WIG',major.ticks = "years",grid.ticks.on = "years")
+plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
+plot(wersja1,main=expression(beta),major.ticks = "years",grid.ticks.on = "years")
+par(mfrow=c(1,1))
+ 
+
+
+#parametr mu_h
+xx1<-seq(from=params_nowe2['mu_h']-1,to=params_nowe2['mu_h']+1,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.beta.log<- foreach(i=1:length(xx1) ,.packages='pomp', .export = "betalist",.combine=rbind,
+                     .options.multicore=list(set.seed=TRUE)) %dopar% {
+                       set.seed(87932)
+                       logLik(pfilter(beta.filt,params=c(mu_h=xx1[i], 
+                                                         phi=as.numeric(params_nowe2['phi']),
+                                                         sigma_eta=as.numeric(params_nowe2['sigma_eta']),
+                                                         alpha=as.numeric(params_nowe2['alpha']),
+                                                         sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                         Beta_0=as.numeric(params_nowe2['Beta_0']),
+                                                         H_0=as.numeric(params_nowe2['H_0'])),
+                                      Np=betalist[[1]][run_level] ))
+                     }
+
+stopCluster(cl)
+beep(2)
+
+
+plot(xx1, L.beta.log, type='l',xlab=expression(mu[h]),ylab="logLik")
+points(xx1, L.beta.log)
+points(r.box[,'mu_h'], r.box[,'logLik'] ,col='red')
+p=loess(L.beta.log~xx1,span=0.5)
+lines(xx1,p$fitted,col='blue',lwd=2)
+abline(v=params_nowe2['mu_h'],lty=2)
+
+
+
+#parametr phi
+xx2<-seq(from=0.95,to=0.999,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.beta.log2<- foreach(i=1:length(xx2) ,.packages='pomp', .export = "betalist",.combine=rbind,
+                     .options.multicore=list(set.seed=TRUE)) %dopar% {
+                       set.seed(87932)
+                       logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['phi']),
+                                                         phi=as.numeric(xx2[i]), 
+                                                         sigma_eta=as.numeric(params_nowe2['sigma_eta']),
+                                                         alpha=as.numeric(params_nowe2['alpha']),
+                                                         sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                         Beta_0=as.numeric(params_nowe2['Beta_0']),
+                                                         H_0=as.numeric(params_nowe2['H_0'])),
+                                      Np=betalist[[1]][run_level] ))
+                     }
+
+stopCluster(cl)
+
+
+
+plot(xx2, L.beta.log2, type='l',xlab=expression(phi),ylab="logLik")
+points(xx2, L.beta.log2)
+points(r.box[,'phi'], r.box[,'logLik'] ,col='red')
+p2=loess(L.beta.log2~xx2,span=0.5)
+lines(xx2,p2$fitted,col='blue',lwd=2)
+abline(v=params_nowe2['phi'],lty=2)
+beep(2)
+
+
+#parametr sigma_eta
+xx3<-seq(from=0.01,to=.5,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.beta.log3<- foreach(i=1:length(xx3) ,.packages='pomp', .export = "betalist",.combine=rbind,
+                      .options.multicore=list(set.seed=TRUE)) %dopar% {
+                        set.seed(87932)
+                        logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
+                                                          phi=as.numeric(params_nowe2['phi']),
+                                                          sigma_eta=xx3[i],
+                                                          alpha=as.numeric(params_nowe2['alpha']),
+                                                          sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                          Beta_0=as.numeric(params_nowe2['Beta_0']),
+                                                          H_0=as.numeric(params_nowe2['H_0'])),
+                                       Np=betalist[[1]][run_level] ))
+                      }
+
+stopCluster(cl)
+
+
+
+plot(xx3, L.beta.log3, type='l',xlab=expression(sigma[eta]),ylab="logLik")
+points(xx3, L.beta.log3)
+points(r.box[,'sigma_eta'], r.box[,'logLik'] ,col='red')
+p3=loess(L.beta.log3~xx3,span=0.25)
+lines(xx3,p3$fitted,col='blue',lwd=2)
+abline(v=params_nowe2['sigma_eta'],lty=2)
+beep(2)
+
+
+#parametr sigma_ksi
+xx4<-seq(from=0.01,to=.025,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.beta.log4<- foreach(i=1:length(xx4) ,.packages='pomp', .export = "betalist",.combine=rbind,
+                      .options.multicore=list(set.seed=TRUE)) %dopar% {
+                        set.seed(87932)
+                        logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
+                                                          phi=as.numeric(params_nowe2['phi']),
+                                                          sigma_eta=as.numeric(params_nowe2['sigma_eta']),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
+                                                          sigma_ksi =xx4[i],
+                                                          Beta_0=as.numeric(params_nowe2['Beta_0']),
+                                                          H_0=as.numeric(params_nowe2['H_0'])),
+                                       Np=betalist[[1]][run_level] ))
+                      }
+
+stopCluster(cl)
+
+
+
+plot(xx4, L.beta.log4, type='l',xlab=expression(sigma[xi]),ylab="logLik")
+points(xx4, L.beta.log4)
+points(r.box[,'sigma_ksi'], r.box[,'logLik'] ,col='red')
+p4=loess(L.beta.log4~xx4,span=0.25)
+lines(xx4,p4$fitted,col='blue',lwd=2)
+abline(v=params_nowe2['sigma_ksi'],lty=2)
+beep(2)
+
+
+
+#parametr alpha
+xx5<-seq(from=.1,to=.1,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.beta.log5<- foreach(i=1:length(xx5) ,.packages='pomp', .export = "betalist",.combine=rbind,
+                      .options.multicore=list(set.seed=TRUE)) %dopar% {
+                        set.seed(87932)
+                        logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
+                                                          phi=as.numeric(params_nowe2['phi']),
+                                                          sigma_eta=as.numeric(params_nowe2['sigma_eta']),
+                                                          alpha=xx5[i],
+                                                          sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                          Beta_0=as.numeric(params_nowe2['Beta_0']),
+                                                          H_0=as.numeric(params_nowe2['H_0'])),
+                                       Np=betalist[[1]][run_level] ))
+                      }
+
+stopCluster(cl)
+
+
+
+plot(xx5, L.beta.log5, type='l',xlab=expression(alpha),ylab="logLik")
+points(xx5, L.beta.log5)
+points(r.box[,'alpha'], r.box[,'logLik'] ,col='red')
+p5=loess(L.beta.log5~xx5,span=0.5)
+lines(xx5,p5$fitted,col='blue',lwd=2)
+abline(v=params_nowe2['alpha'],lty=2)
+beep(2)
+
+
+
+#parametr Beta_0
+xx6<-seq(from=0.1,to=0.5,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.beta.log6<- foreach(i=1:length(xx6) ,.packages='pomp', .export = "betalist",.combine=rbind,
+                      .options.multicore=list(set.seed=TRUE)) %dopar% {
+                        set.seed(87932)
+                        logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
+                                                          phi=as.numeric(params_nowe2['phi']),
+                                                          sigma_eta=as.numeric(params_nowe2['sigma_eta']),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
+                                                          sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                          Beta_0=xx6[i],
+                                                          H_0=as.numeric(params_nowe2['H_0'])),
+                                       Np=betalist[[1]][run_level] ))
+                      }
+
+stopCluster(cl)
+beep(2)
+
+
+plot(xx6, L.beta.log6, type='l',xlab=expression(beta[0]),ylab="logLik")
+points(xx6, L.beta.log6)
+points(r.box[,'Beta_0'], r.box[,'logLik'] ,col='red')
+p6=loess(L.beta.log6~xx6,span=0.5)
+lines(xx6,p6$fitted,col='blue',lwd=2)
+abline(v=params_nowe2['Beta_0'],lty=2)
+
+
+liczba_powtorzen=10
+#parametr H_0
+xx7<-seq(from=-.1,to=.5,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.beta.log7<- foreach(i=1:length(xx7) ,.packages='pomp', .export = "betalist",.combine=rbind,
+                      .options.multicore=list(set.seed=TRUE)) %dopar% {
+                        set.seed(87932)
+                        logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
+                                                          phi=as.numeric(params_nowe2['phi']),
+                                                          sigma_eta=as.numeric(params_nowe2['sigma_eta']),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
+                                                          sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                          Beta_0=as.numeric(params_nowe2['Beta_0']),
+                                                          H_0=xx7[i]),
+                                       Np=betalist[[1]][run_level] ))
+                      }
+
+stopCluster(cl)
+
+
+
+plot(xx7, L.beta.log7, type='l',xlab=expression(H[0]),ylab="logLik")
+points(xx7, L.beta.log7)
+points(r.box[,'H_0'], r.box[,'logLik'] ,col='red')
+p7=loess(L.beta.log7~xx7,span=0.5)
+lines(xx7,p7$fitted,col='blue',lwd=2)
+abline(v=params_nowe2['H_0'],lty=2)
+
+beep(2)
+

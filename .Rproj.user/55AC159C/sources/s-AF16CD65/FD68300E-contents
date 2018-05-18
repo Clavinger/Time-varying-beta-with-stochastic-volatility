@@ -4,9 +4,9 @@
 
 ############################################
 #poczatek okresu badania 
-data.poczatkowa='2005-04-01'
+data.poczatkowa='2009-01'
 #koniec okresu badania
-data.koncowa='2016-03-31'
+data.koncowa='2016-12'
 ############################################
 
 
@@ -15,7 +15,7 @@ library(quantmod)
 library(PerformanceAnalytics)
 
 #rm(list = ls())
-setwd("C:/Users/user/Documents/github/Time-varying-beta-with-stochastic-volatility/Dane")
+setwd("C:/Users/user/Documents/github/Zmienny-parametr-Beta---grupowanie/Dane")
 
 #wczytanie tiker?w z pliku
 tikery=as.matrix(read.csv2(file="tikery.csv"))
@@ -53,10 +53,7 @@ write.zoo(wig.zwroty.sub,file="wig_zwroty_sub.csv",sep=',')
 #tworzenie bazy danych
 baza.danych.zwroty=matrix(0,nrow =n ,ncol=length(baza.danych.tikery))
 for(i in 1:length(baza.danych.tikery)){
-  if(length(get(paste(baza.danych.tikery[i],".zwroty",sep="")))==n){
-    baza.danych.zwroty[,i]=get(paste(baza.danych.tikery[i],".zwroty",sep=""))
-    }else baza.danych.zwroty[,i]=c(rep(0,n-length(get(paste(baza.danych.tikery[i],".zwroty",sep="")))),get(paste(baza.danych.tikery[i],".zwroty",sep="")))
-  
+  baza.danych.zwroty[,i]=get(paste(baza.danych.tikery[i],".zwroty",sep=""))
 }
 colnames(baza.danych.zwroty)=baza.danych.tikery
 baza.danych.zwroty=xts(baza.danych.zwroty,

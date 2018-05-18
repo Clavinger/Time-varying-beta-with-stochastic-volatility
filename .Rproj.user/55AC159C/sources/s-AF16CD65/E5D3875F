@@ -7,13 +7,13 @@
     "folds" : "",
     "hash" : "0",
     "id" : "E5D3875F",
-    "lastKnownWriteTime" : 1526590757,
-    "last_content_update" : 1526590757,
+    "lastKnownWriteTime" : 1526644572,
+    "last_content_update" : 1526644572602,
     "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/beta sv model wersja 2.R",
     "project_path" : "Skrypty do R/beta sv model wersja 2.R",
     "properties" : {
-        "cursorPosition" : "126,15",
-        "scrollLine" : "116"
+        "cursorPosition" : "30,0",
+        "scrollLine" : "16"
     },
     "relative_order" : 2,
     "source_on_save" : false,

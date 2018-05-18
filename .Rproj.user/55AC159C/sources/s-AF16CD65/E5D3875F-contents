@@ -2,36 +2,33 @@ library(pomp)
 library(beepr)
 library(doParallel)
 library(doSNOW)
+
+
 #rm(list = ls())
-n=147
-
-#dane za okres 2013-04-22 do 2018-02-09
-dane2<-read.csv('C:/Users/user/Dropbox/phd/Dane/wig_m.csv', header = T)
-str(dane2)
-dane3<-matrix(dane2$Zamkniecie,nrow=n,ncol=1)
-str(dane3)
+setwd("C:/Users/user/Documents/github/Time-varying-beta-with-stochastic-volatility/Dane")
 
 
+#sciaganie danych
+baza.danych.zwroty=read.csv.zoo("baza_danych_zwroty.csv",sep=',')
+baza.danych.zwroty=as.xts(baza.danych.zwroty)
+wig.zwroty=read.csv.zoo("wig_zwroty_sub.csv",sep=',')
+wig.zwroty=as.xts(wig.zwroty)
 
 
-dane4<-read.csv('C:/Users/user/Dropbox/phd/Dane/bzw_m.csv', header = T)
-str(dane4)
-dane5<-matrix(dane4$Zamkniecie,nrow=n,ncol=1)
-dane=matrix(0,nrow=n,ncol=2)
-dane[,1]=dane3[,1]
-dane[,2]=dane5[,1]
-dim(dane)
-lr.wbk=1:(n-1)
-lr.wig=1: (n-1)
-for(i in 2:(n)){
-  lr.wbk[i-1]=(log(dane[i,2])-log(dane[i-1,2]))*100
-  lr.wig[i-1]=(log(dane[i,1])-log(dane[i-1,1]))*100
-}
+#wybór tickera
+tiker='PKO'
 
-y=lr.wbk
-x=lr.wig
+y=baza.danych.zwroty[,tiker]
+y=y[-1]
+x=wig.zwroty
 
-n=length(lr.wbk)
+n=length(x)
+
+par(mfrow=c(2,1))
+plot(x,main='WIG',major.ticks = "years",grid.ticks.on = "years")
+plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
+par(mfrow=c(1,1))
+
 
 ####nazwy
 beta_statenames <- c("H","R_i","Beta","Alpha")
@@ -106,22 +103,22 @@ Tphi = expit(phi);
 
 
 ####wypelnianie modelu danymi
-beta.filt <- pomp(data=data.frame(y=lr.wbk,
-                                 time=1:length(lr.wbk)),
-                 statenames=beta_statenames,
-                 paramnames=beta_paramnames,
-                 covarnames=beta_covarnames,
-                 times="time",
-                 t0=0,
-                 covar=data.frame(R_i_dane=c(0,lr.wbk) ,R_M=c(0,lr.wig),
-                                  time=0:length(lr.wbk)),
-                 tcovar="time",
-                 rmeasure=Csnippet(beta_rmeasure),
-                 dmeasure=Csnippet(beta_dmeasure),
-                 rprocess=discrete.time.sim(step.fun=Csnippet(beta_rproc.filt),delta.t=1),
-                 initializer=Csnippet(beta_initializer),
-                 toEstimationScale=Csnippet(beta_toEstimationScale), 
-                 fromEstimationScale=Csnippet(beta_fromEstimationScale)
+beta.filt <- pomp(data=data.frame(y=as.vector(y),
+                                  time=1:length(y)),
+                  statenames=beta_statenames,
+                  paramnames=beta_paramnames,
+                  covarnames=beta_covarnames,
+                  times="time",
+                  t0=0,
+                  covar=data.frame(R_i_dane=c(0,as.vector(y)) ,R_M=c(0,as.vector(x)),
+                                   time=0:length(y)),
+                  tcovar="time",
+                  rmeasure=Csnippet(beta_rmeasure),
+                  dmeasure=Csnippet(beta_dmeasure),
+                  rprocess=discrete.time.sim(step.fun=Csnippet(beta_rproc.filt),delta.t=1),
+                  initializer=Csnippet(beta_initializer),
+                  toEstimationScale=Csnippet(beta_toEstimationScale), 
+                  fromEstimationScale=Csnippet(beta_fromEstimationScale)
 )
 
 plot(beta.filt)

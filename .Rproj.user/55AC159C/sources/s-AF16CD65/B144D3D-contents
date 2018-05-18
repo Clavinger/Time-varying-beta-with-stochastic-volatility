@@ -23,9 +23,10 @@ x=wig.zwroty
 
 n=length(x)
 
-
-plot(x)
-plot(y)
+par(mfrow=c(2,1))
+plot(x,main='WIG',major.ticks = "years",grid.ticks.on = "years")
+plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
+par(mfrow=c(1,1))
 
 ####nazwy
 beta_statenames <- c("H","R_i","Beta")

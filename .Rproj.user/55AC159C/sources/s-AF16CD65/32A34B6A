@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1526639246666.000,
+    "dirty" : true,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "32A34B6A",
+    "lastKnownWriteTime" : 1526639841,
+    "last_content_update" : 1526641566251,
+    "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/Tworzenie bazy danych zwrotow logarytmicznych.R",
+    "project_path" : "Skrypty do R/Tworzenie bazy danych zwrotow logarytmicznych.R",
+    "properties" : {
+        "cursorPosition" : "42,10",
+        "scrollLine" : "25"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

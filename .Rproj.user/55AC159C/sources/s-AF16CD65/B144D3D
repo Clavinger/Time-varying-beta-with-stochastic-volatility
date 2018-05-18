@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1526632154548.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "B144D3D",
+    "lastKnownWriteTime" : 1526642552,
+    "last_content_update" : 1526642552642,
+    "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/beta sv model.R",
+    "project_path" : "Skrypty do R/beta sv model.R",
+    "properties" : {
+        "cursorPosition" : "249,0",
+        "scrollLine" : "226"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

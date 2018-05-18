@@ -2,35 +2,41 @@ library(pomp)
 library(beepr)
 library(doParallel)
 library(doSNOW)
-
 #rm(list = ls())
-setwd("C:/Users/user/Documents/github/Time-varying-beta-with-stochastic-volatility/Dane")
+n=147
+
+#dane za okres 2013-04-22 do 2018-02-09
+dane2<-read.csv('C:/Users/user/Dropbox/phd/Dane/wig_m.csv', header = T)
+str(dane2)
+dane3<-matrix(dane2$Zamkniecie,nrow=n,ncol=1)
+str(dane3)
 
 
-#sciaganie danych
-baza.danych.zwroty=read.csv.zoo("baza_danych_zwroty.csv",sep=',')
-baza.danych.zwroty=as.xts(baza.danych.zwroty)
-wig.zwroty=read.csv.zoo("wig_zwroty_sub.csv",sep=',')
-wig.zwroty=as.xts(wig.zwroty)
 
 
-#wybór tickera
-tiker='PKO'
+dane4<-read.csv('C:/Users/user/Dropbox/phd/Dane/bzw_m.csv', header = T)
+str(dane4)
+dane5<-matrix(dane4$Zamkniecie,nrow=n,ncol=1)
+dane=matrix(0,nrow=n,ncol=2)
+dane[,1]=dane3[,1]
+dane[,2]=dane5[,1]
+dim(dane)
+lr.wbk=1:(n-1)
+lr.wig=1: (n-1)
+for(i in 2:(n)){
+  lr.wbk[i-1]=(log(dane[i,2])-log(dane[i-1,2]))*100
+  lr.wig[i-1]=(log(dane[i,1])-log(dane[i-1,1]))*100
+}
 
-y=baza.danych.zwroty[,tiker]
-y=y[-1]
-x=wig.zwroty
+y=lr.wbk
+x=lr.wig
 
-n=length(x)
-
-
-plot(x)
-plot(y)
+n=length(lr.wbk)
 
 ####nazwy
-beta_statenames <- c("H","R_i","Beta")
-beta_rp_names <- c("mu_h","phi","sigma_eta","sigma_ksi","alpha")
-beta_ivp_names <- c("Beta_0","H_0")
+beta_statenames <- c("H","R_i","Beta","Alpha")
+beta_rp_names <- c("mu_h","phi","sigma_eta","sigma_ksi","sigma_gamma")
+beta_ivp_names <- c("Beta_0","H_0","Alpha_0")
 beta_paramnames <- c(beta_rp_names,beta_ivp_names)
 beta_covarnames <- c("R_i_dane","R_M")
 
@@ -39,15 +45,18 @@ beta_covarnames <- c("R_i_dane","R_M")
 rproc1 <- "
 double omega;
 double ksi;
+double gamma;
 omega = rnorm(0,sigma_eta );
 ksi= rnorm(0,sigma_ksi );
+gamma= rnorm(0,sigma_gamma );
 Beta=Beta+ksi;
+Alpha=Alpha+gamma;
 H = mu_h*(1 - phi) + phi*H + omega;
 "
 
 ####rownanie procesu pomiaru
 rproc2.sim <- "
-R_i = rnorm( alpha+Beta*R_M,exp(H/2) );
+R_i = rnorm( Alpha+Beta*R_M,exp(H/2) );
 "
 ###do wypelniania danych
 rproc2.filt <- "
@@ -66,7 +75,8 @@ beta_rproc.filt <- paste(rproc1,rproc2.filt)
 beta_initializer <- "
 Beta=Beta_0;
 H = H_0 ;
-R_i = rnorm(alpha+Beta*R_M,exp(H/2) );
+Alpha=Alpha_0;
+R_i = rnorm(Alpha+Beta*R_M,exp(H/2) );
 "
 ###????
 beta_rmeasure <- "
@@ -75,7 +85,7 @@ y=R_i;
 
 ####rozk?ad warunkowy zmiennej Y
 beta_dmeasure <- "
-lik=dnorm(y,alpha+Beta*R_M,exp(H/2),give_log);
+lik=dnorm(y,Alpha+Beta*R_M,exp(H/2),give_log);
 "
 
 
@@ -83,26 +93,28 @@ lik=dnorm(y,alpha+Beta*R_M,exp(H/2),give_log);
 beta_toEstimationScale <- "
 Tsigma_eta = log(sigma_eta);
 Tsigma_ksi = log(sigma_ksi);
+Tsigma_gamma = log(sigma_gamma);
 Tphi = logit(phi);
 "
 
 beta_fromEstimationScale <- "
 Tsigma_eta = exp(sigma_eta);
 Tsigma_ksi = exp(sigma_ksi);
+Tsigma_gamma = exp(sigma_gamma);
 Tphi = expit(phi);
 "
 
 
 ####wypelnianie modelu danymi
-beta.filt <- pomp(data=data.frame(y=as.vector(y),
-                                 time=1:length(y)),
+beta.filt <- pomp(data=data.frame(y=lr.wbk,
+                                 time=1:length(lr.wbk)),
                  statenames=beta_statenames,
                  paramnames=beta_paramnames,
                  covarnames=beta_covarnames,
                  times="time",
                  t0=0,
-                 covar=data.frame(R_i_dane=c(0,as.vector(y)) ,R_M=c(0,as.vector(x)),
-                                  time=0:length(y)),
+                 covar=data.frame(R_i_dane=c(0,lr.wbk) ,R_M=c(0,lr.wig),
+                                  time=0:length(lr.wbk)),
                  tcovar="time",
                  rmeasure=Csnippet(beta_rmeasure),
                  dmeasure=Csnippet(beta_dmeasure),
@@ -124,8 +136,9 @@ params_test <- c(
   phi = phi,     
   sigma_eta =sigma,
   sigma_ksi=sigma,
-  alpha=0,
-  Beta_0=0.5,
+  sigma_gamma=sigma,
+  Beta_0=1.5,
+  Alpha_0=0.5,  
   H_0=0
 )
 
@@ -136,9 +149,7 @@ pf1 <- pfilter(beta.filt,params=params_test,
 
 plot(pf1)
 
-plot(exp(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])]/2),type='l',col='red',lty=2)
-legend(x='topleft',legend = c('true','filtered'),
-       col=c('black','red'),lty=c(1,2))
+
 
 
 ###trzy szybkosci filtru: 1 -szybki, 2 -sredni, 3 - wolny
@@ -168,8 +179,9 @@ beta_box <- rbind(
   phi    = c(0.9,0.99),
   mu_h = c(-1,1),
   sigma_ksi=c(0.1,1),
-  alpha=c(-0.1,0.1),
+  sigma_gamma=c(0.1,1),
   Beta_0=c(0,1),
+  Alpha_0=c(0,1),  
   H_0=c(-1,1)
 )
 
@@ -191,10 +203,11 @@ t.beta.box <- system.time({
                  phi       = beta_rw.sd_rp,
                  sigma_eta = beta_rw.sd_rp,
                  sigma_ksi = beta_rw.sd_rp,
-                 alpha=beta_rw.sd_rp,
+                 sigma_gamma = beta_rw.sd_rp,
                  Beta_0       = ivp(beta_rw.sd_ivp),
+                 Alpha_0      = ivp(beta_rw.sd_ivp),
                  H_0       = ivp(beta_rw.sd_ivp)
-                 )
+               )
     )
   L.beta.box <- foreach(i=1:betalist[[5]][run_level] ,.packages='pomp', .export = "betalist",.combine=rbind,
                         .options.multicore=list(set.seed=TRUE)) %dopar% {
@@ -220,10 +233,6 @@ end_time - start_time
 beep(2)
 plot(if.beta.box )
 
-
-#save(if.beta.box,L.beta.box,H.beta.box, file="beta_box_eval.rda")
-#load( file="beta_box_eval.rda")
-
 r.box <- data.frame(logLik=L.beta.box [,1],logLik_se=L.beta.box [,2],t(sapply(if.beta.box,coef)))
 round(apply(as.matrix(r.box),MARGIN=2, FUN=mean ),4)
 round(r.box [which.max(r.box $logLik),],4)
@@ -234,7 +243,8 @@ params_nowe2<- c(
   phi         = as.numeric(r.box [which.max(r.box $logLik),'phi']),    
   sigma_eta   = as.numeric(r.box [which.max(r.box $logLik),'sigma_eta']), 
   sigma_ksi   = as.numeric(r.box [which.max(r.box $logLik),'sigma_ksi']), 
-  alpha       = as.numeric(r.box [which.max(r.box $logLik),'alpha']),
+  sigma_gamma   = as.numeric(r.box [which.max(r.box $logLik),'sigma_gamma']),  
+  Alpha_0        = as.numeric(r.box [which.max(r.box $logLik),'Alpha_0']),
   Beta_0       = as.numeric(r.box [which.max(r.box $logLik),'Beta_0']),
   H_0       = as.numeric(r.box [which.max(r.box $logLik),'H_0'])
 )
@@ -246,4 +256,5 @@ par(mfrow=c(1,1))
 plot(exp(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])]/2),type='l')
 plot(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="H")
 plot(pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="Beta")
-wersja1=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
+plot(pf1@filter.traj[4,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="Alpha")
+wersja2=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]

@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1526639859356.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "21CB2A51",
+    "lastKnownWriteTime" : 1526639929,
+    "last_content_update" : 1526639929561,
+    "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/Skypt pobierający dane do badania.R",
+    "project_path" : "Skrypty do R/Skypt pobierający dane do badania.R",
+    "properties" : {
+        "cursorPosition" : "65,84",
+        "scrollLine" : "48"
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

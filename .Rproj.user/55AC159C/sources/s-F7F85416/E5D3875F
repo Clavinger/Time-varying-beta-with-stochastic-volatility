@@ -5,15 +5,15 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "0",
+    "hash" : "3107893604",
     "id" : "E5D3875F",
-    "lastKnownWriteTime" : 1526666242,
-    "last_content_update" : 1526666242906,
+    "lastKnownWriteTime" : 1526673833,
+    "last_content_update" : 1526673833586,
     "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/beta sv model wersja 2.R",
     "project_path" : "Skrypty do R/beta sv model wersja 2.R",
     "properties" : {
-        "cursorPosition" : "254,0",
-        "scrollLine" : "237"
+        "cursorPosition" : "6,0",
+        "scrollLine" : "0"
     },
     "relative_order" : 2,
     "source_on_save" : false,

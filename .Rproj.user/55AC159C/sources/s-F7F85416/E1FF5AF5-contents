@@ -1,0 +1,853 @@
+require("roll")
+require("FKF")
+require("moments")
+require("rtf")
+#############################################
+#############################################
+#############################################
+#DANE
+
+n=157
+
+#dane za okres 2013-04-22 do 2018-02-09
+dane2<-read.csv('C:/Users/user/Dropbox/phd/Dane/wig_m.csv', header = T)
+str(dane2)
+dane3<-matrix(dane2$Zamkniecie,nrow=n,ncol=1)
+str(dane3)
+ dane2$Data[157]
+
+
+
+
+dane4<-read.csv('C:/Users/user/Dropbox/phd/Dane/bzw_m.csv', header = T)
+str(dane4)
+dane5<-matrix(dane4$Zamkniecie,nrow=n,ncol=1)
+dane=matrix(0,nrow=n,ncol=2)
+dane[,1]=dane3[,1]
+dane[,2]=dane5[,1]
+dim(dane)
+lr.wbk=1:(n-1)
+lr.wig=1: (n-1)
+for(i in 2:(n-1)){
+  lr.wbk[i-1]=(log(dane[i,2])-log(dane[i-1,2]))*100
+  lr.wig[i-1]=(log(dane[i,1])-log(dane[i-1,1]))*100
+}
+
+
+par(mfrow=c(2,2))
+plot(dane[,1],type='l',main="(a)", xlab="czas",ylab="WIG")
+plot(dane[,2],type='l',main="(b)", xlab="czas",ylab="BZW")
+plot(lr.wig,type='l', main="(c)", xlab="czas",ylab="r_WIG")
+plot(lr.wbk,type='l', main="(d)", xlab="czas",ylab="r_BZW")
+par(mfrow=c(1,1))
+summary(lr.wig)
+skewness(lr.wig)
+kurtosis(lr.wig)
+summary(lr.wbk)
+skewness(lr.wbk)
+kurtosis(lr.wbk)
+jarque.test(lr.wig)
+jarque.test(lr.wbk)
+plot(density(lr.wig))
+lines(seq(from=-40,to=40, length.out  = 100) ,
+      dnorm(seq(from=-40,to=40, length.out= 100)  ,
+            mean=mean(lr.wig),sd=sd(lr.wig)),col='red')
+y=lr.wbk
+x=lr.wig
+
+length(y)
+#############################################
+#############################################
+#############################################
+
+
+  
+  rysunki=0
+  testy=0
+  n=length(x)
+  tabela.parametry<-matrix(NaN,8,8)
+  tabela.hesjan<-matrix(NaN,8,8)
+  tabela.fit<-matrix(NaN,7,8)
+  tablica.testy<-matrix(NaN,8,2)
+  row.names(tablica.testy)=c("2vs5","3vs5","7vs5", "7vsml","5vsml","3vs2","3vs4","2vsml")
+  
+  #KMNK
+  print(summary(lm(y~x))) 
+  lm.mle<-function(theta){
+    suma=0
+    for(i in 1:n){
+      suma=suma+dnorm(y[i]-theta[1]-theta[2]*x[i],0,theta[3],log=T)
+    }
+    -suma
+  }
+  lm.err<-function(theta){
+    suma=0
+    for(i in 1:n){
+      suma=suma+ (y[i]-theta[1]-theta[2]*x[i])^2
+    }
+    suma
+  }
+  
+  mle.opt<-optim(c(0,1,1),lm.mle, method="L-BFGS-B",hessian = T)
+  parametry.mle<-mle.opt$par
+  log.mle<-mle.opt$value
+  print("Model liniowy:")
+  print(round(parametry.mle,4))
+  hesjan.mle=sqrt(diag(solve(mle.opt$hessian)))
+  print(round(hesjan.mle,4))
+  print(round(-log.mle,3))
+  beta.stala= parametry.mle[2]
+  ###########################################
+  #kdlugosc okna
+  k=24
+  beta.var=roll_lm(x=as.matrix(x), y=as.matrix(y), width=k)
+  
+  plot(1:n,beta.var$coefficients[1:n,2],type='l', ylab=expression(beta), 
+       xlab="czas")
+  abline(h=beta.stala,col='red')
+  beta.par=1:6
+#  for(i in 0:48){
+#    beta.par[i+1]=lm(y[(i*48+1):((i+1)*48)]~x[(i*48+1):((i+1)*48)])$coef[2]
+#  }
+#  for(i in 1:12){
+#    lines((((i-1)*48+1):((i)*48)),rep(beta.par[i],48),col='blue')
+#    abline(v=i*48,lwd=0.5,lty="dotted")
+#  } 
+#  abline(v=0,lwd=0.5,lty="dotted")
+#  mean(beta.var$coefficients[24:287,2])
+#  sd(beta.var$coefficients[24:287,2])
+  ##########################################3###########3
+  
+  
+  
+  OUss <- function(sigma.alfa, sigma.beta, epsilon){
+    Tt <- diag(2)
+    Zt <-array(0,dim=c(1,2,n))
+    for(i in 1:n) Zt[,,i]=c(1,x[i])
+    ct <- matrix(c(0),ncol=1)
+    dt <- matrix(c(0,0), nrow = 2)
+    GGt<- matrix(data=c(epsilon^2),nrow = 1,ncol=1)
+    HHt<- matrix(data=c(sigma.alfa^2,0,0,sigma.beta^2),nrow=2,ncol=2)
+    a0 <-  parametry.mle[1:2]
+    P0 <- matrix(data=c(0,0,0,0),nrow=2,ncol=2)
+    return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+                HHt = HHt))
+    
+  }
+  
+  KF <- function(theta) {
+    sp <- OUss(theta[1], theta[2], theta[3])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(ans$att[2,])
+  }
+  
+  KF.log <- function(theta) {
+    sp <- OUss(theta[1], theta[2], theta[3])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(-ans$logLik)
+  }
+  KF.err <- function(theta) {
+    sp <- OUss(theta[1], theta[2], theta[3] )
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(sum(ans$vt[1,]^2))
+  }
+  
+  KF1.opt<-optim(c(.1,1,1.1),KF.log, 
+                 method="L-BFGS-B",hessian = T )
+  parametry<-KF1.opt$par
+  hesjan=sqrt(diag(solve(KF1.opt$hessian)))
+  log.KF1<-KF1.opt$value
+  print("SP1:")
+  print(round(parametry,4))
+  print(round(hesjan,4))
+  print(round(-log.KF1,3))
+  
+  OUss2 <- function(alpha, sigma.beta, epsilon){
+    Tt <- diag(1)
+    Zt <-array(0,dim=c(1,1,n))
+    for(i in 1:n) Zt[,,i]=lr.wig[i]
+    ct <- matrix(c(alpha),ncol=1)
+    dt <- matrix(c(0), nrow = 1)
+    GGt<- matrix(data=c(epsilon^2),nrow = 1,ncol=1)
+    HHt<- matrix(data=c(sigma.beta^2),nrow=1,ncol=1)
+    a0 <- parametry.mle[2]
+    P0 <- matrix(data=c(0),nrow=1,ncol=1)
+    return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+                HHt = HHt))
+    
+  }
+  
+  KF2 <- function(theta) {
+    sp <- OUss2(theta[1], theta[2], theta[3])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(ans$att[1,])
+  }
+  
+  KF2.log <- function(theta) {
+    sp <- OUss2(theta[1], theta[2], theta[3])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(-ans$logLik)
+  }
+  
+  KF2.err <- function(theta) {
+    sp <- OUss2(theta[1], theta[2], theta[3] )
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt,yt =matrix(y, nrow=1,ncol=n))
+    return(sum(ans$vt[1,]^2))
+  }
+  
+  KF2.opt<-optim(c(0.005,.1,1.1),KF2.log, 
+                 method="L-BFGS-B",hessian = T,lower = c(-1,0.03,0))
+  parametry2<-KF2.opt$par
+  hesjan2=sqrt(diag(solve(KF2.opt$hessian)))
+  log.KF2<-KF2.opt$value
+  print("SP2:")
+  print(round(parametry2,4))
+  print(round(hesjan2,4))  
+  print(round(-log.KF2,3))
+  
+  OUss3 <- function(alpha,rho, sigma.beta, epsilon){
+    Tt <- rho*diag(1)
+    Zt <-array(0,dim=c(1,1,n))
+    for(i in 1:n) Zt[,,i]=lr.wig[i]
+    ct <- matrix(c(alpha),ncol=1)
+    dt <- matrix(c(0), nrow = 1)
+    GGt<- matrix(data=c(epsilon^2),nrow = 1,ncol=1)
+    HHt<- matrix(data=c(sigma.beta^2),nrow=1,ncol=1)
+    a0 <- parametry.mle[2]
+    P0 <- matrix(data=c(0),nrow=1,ncol=1)
+    return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+                HHt = HHt))
+    
+  }
+  
+  KF3 <- function(theta) {
+    sp <- OUss3(theta[1], theta[2], theta[3], theta[4])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(ans$at[1,])
+  }
+  
+  KF3.log <- function(theta) {
+    sp <- OUss3(theta[1], theta[2], theta[3], theta[4])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(-ans$logLik)
+  }
+  
+  KF3.err <- function(theta) {
+    sp <- OUss3(theta[1], theta[2], theta[3], theta[4])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(sum(ans$vt[1,]^2))
+  }
+  
+  KF3.opt<-optim(c(0.005,0.9,0.05,1.1),KF3.log, 
+                 method="L-BFGS-B",hessian = T,lower=c(-Inf,-Inf,0,0))
+  parametry3<-KF3.opt$par
+  hesjan3=sqrt(diag(solve(KF3.opt$hessian)))
+  log.KF3<-KF3.opt$value
+  print("SP3:")
+  print(round(parametry3,4))
+  print(round(hesjan3,4))  
+  print(round(-log.KF3,3))
+  
+  
+  
+  OUss4 <- function(alpha, rho, teta, sigma.beta, epsilon){
+    
+    Tt <- matrix(c(rho,1,0,0),ncol=2,nrow = 2,byrow = T)
+    Zt <-array(0,dim=c(1,2,n))
+    for(i in 1:n) Zt[,,i]=c(lr.wig[i],0)
+    ct <- matrix(c(alpha),ncol=1)
+    dt <- matrix(c(0,0), nrow = 2)
+    GGt<- matrix(data=c(epsilon^2),nrow = 1,ncol=1)
+    HHt<- matrix(data=c(sigma.beta^2,teta*sigma.beta^2,teta*sigma.beta^2,(teta^2)*sigma.beta^2),nrow=2,ncol=2,byrow = T)
+    a0 <- c(parametry.mle[2],0)
+    P0 <- matrix(data=0,nrow=2,ncol=2)
+    return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+                HHt = HHt))
+    
+  }
+  
+  KF4 <- function(theta) {
+    sp <- OUss4(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(ans$at[1,])
+  }
+  
+  KF4.log <- function(theta) {
+    sp <- OUss4(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(-ans$logLik)
+  }
+  
+  
+  KF4.err <- function(theta) {
+    sp <- OUss4(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt,  yt =matrix(y, nrow=1,ncol=n))
+    return(sum(ans$vt[1,]^2))
+  }
+  parametry4=rep(0,5)
+  hesjan4=rep(0,5)
+  log.KF4=0
+  
+ 
+      KF4.opt<-optim(c(0.005,0.99,.15,0.05,1.1),KF4.log, 
+      method="L-BFGS-B",hessian = T,lower=c(-Inf,-Inf,-Inf,0,0))
+      parametry4<-KF4.opt$par
+      hesjan4=sqrt(diag(solve(KF4.opt$hessian)))
+       log.KF4<-KF4.opt$value
+  print("SP4:")
+  print(round(parametry4,4))
+  print(round(hesjan4,4))  
+  print(round(-log.KF4,3))
+  
+  
+  OUss5 <- function(alpha,rho, beta, sigma.beta, epsilon){
+    Tt <- rho*diag(1)
+    Zt <-array(0,dim=c(1,1,n))
+    for(i in 1:n) Zt[,,i]=lr.wig[i]
+    ct <- matrix(c(alpha),ncol=1)
+    dt <- matrix(c((1-rho)*beta), nrow = 1)
+    GGt<- matrix(data=c(epsilon^2),nrow = 1,ncol=1)
+    HHt<- matrix(data=c(sigma.beta^2),nrow=1,ncol=1)
+    a0 <- parametry.mle[2]
+    P0 <- matrix(data=c(0),nrow=1,ncol=1)
+    return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+                HHt = HHt))
+    
+  }
+  
+  KF5 <- function(theta) {
+    sp <- OUss5(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt,  yt =matrix(y, nrow=1,ncol=n))
+    return(ans$at[1,])
+  }
+  
+  KF5.log <- function(theta) {
+    sp <- OUss5(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt,  yt =matrix(y, nrow=1,ncol=n))
+    return(-ans$logLik)
+  }
+  
+  
+  KF5.err <- function(theta) {
+    sp <- OUss5(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt,  yt =matrix(y, nrow=1,ncol=n))
+    return(sum(ans$vt[1,]^2))
+  }
+  
+  
+  KF5.opt<-optim(c(0.005,0.2,1.15,0.5,1.1),KF5.log, 
+                 method="L-BFGS-B",hessian = T,lower=c(-Inf,-Inf,-Inf,0,0))
+  parametry5<-KF5.opt$par
+  hesjan5=sqrt(diag(solve(KF5.opt$hessian)))
+  log.KF5<-KF5.opt$value
+  print("SP5:")
+  print(round(parametry5,4))
+  print(round(hesjan5,4))  
+  print(round(-log.KF5,3))
+  
+  
+  
+  
+  
+  OUss6 <- function(alpha, beta, sigma.alfa, sigma.beta, epsilon){
+    Tt <- 0*diag(2)
+    Zt <-array(0,dim=c(1,2,n))
+    for(i in 1:n) Zt[,,i]=c(1,lr.wig[i])
+    ct <- matrix(c(0),ncol=1)
+    dt <- matrix(c(alpha,beta), nrow = 2)
+    GGt<- matrix(data=c(epsilon^2),nrow = 1,ncol=1)
+    HHt<- matrix(data=c(sigma.alfa^2,0,0,sigma.beta^2),nrow=2,ncol=2)
+    a0 <- parametry.mle[1:2] 
+    P0 <- matrix(data=0,nrow=2, ncol=2)
+    return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+                HHt = HHt))
+    
+  }
+  
+  KF6 <- function(theta) {
+    sp <- OUss6(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(ans$at[2,])
+  }
+  
+  KF6.log <- function(theta) {
+    sp <- OUss6(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(-ans$logLik)
+  }
+  
+  
+  KF6.err <- function(theta) {
+    sp <- OUss6(theta[1], theta[2], theta[3], theta[4], theta[5])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+    return(sum(ans$vt[1,]^2))
+  }
+  
+  
+  KF6.opt<-optim(c(0.005,1.2,1.15,0.5,1.1),KF6.log, 
+                 method="L-BFGS-B",hessian = T,lower=c(-Inf,-Inf,-Inf,0,0))
+  parametry6<-KF6.opt$par
+  hesjan6=sqrt(diag(solve(KF6.opt$hessian)))
+  log.KF6<-KF6.opt$value
+  print("SP6:")
+  print(round(parametry6,4))
+  print(round(hesjan6,4))  
+  print(round(-log.KF6,3))
+  
+  
+  OUss7 <- function(alpha, beta, sigma.beta, epsilon){
+    Tt <- 0*diag(1)
+    Zt <-array(0,dim=c(1,1,n))
+    for(i in 1:n) Zt[,,i]=x[i]
+    ct <- matrix(c(alpha),ncol=1)
+    dt <- matrix(c(beta), nrow = 1)
+    GGt<- matrix(data=c(epsilon^2),nrow = 1,ncol=1)
+    HHt<- matrix(data=c(sigma.beta^2),nrow=1,ncol=1)
+    a0 <- parametry.mle[2] 
+    P0 <- matrix(data=0,nrow=1, ncol=1)
+    return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+                HHt = HHt))
+    
+  }
+  
+  KF7 <- function(theta) {
+    sp <- OUss7(theta[1], theta[2], theta[3], theta[4])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(y, nrow=1,ncol=n))
+  }
+  
+  KF7.log <- function(theta) {
+    sp <- OUss7(theta[1], theta[2], theta[3], theta[4])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt,  yt =matrix(y, nrow=1,ncol=n))
+    return(-ans$logLik)
+  }
+  
+  
+  KF7.err <- function(theta) {
+    sp <- OUss7(theta[1], theta[2], theta[3], theta[4])
+    ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+               Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt,  yt =matrix(y, nrow=1,ncol=n))
+    return(sum(ans$vt[1,]^2))
+  }
+  
+  KF7.opt<-optim(c(0.005,1.2,0.5,1.1),KF7.log, 
+                 method="L-BFGS-B",hessian = T,lower=c(-Inf,-Inf,0,0))
+  parametry7<-KF7.opt$par
+  hesjan7=sqrt(diag(solve(KF7.opt$hessian)))
+  log.KF7=KF7.opt$value
+  print("SP7:")
+  print(round(parametry7,4))
+  print(round(hesjan7,4))  
+  print(round(-log.KF7,3))
+  
+  
+  tabela.parametry[c(3,2,1),1]=round(parametry,4)
+  tabela.parametry[c(4,2,1),2]=round(parametry2,4)
+  tabela.parametry[c(4,6,2,1),3]=round(parametry3,4)
+  tabela.parametry[c(4,6,7,2,1),4]=round(parametry4,4)
+  tabela.parametry[c(4,8,5,2,1),5]=round(parametry5,4)
+  tabela.parametry[c(4,5,3,2,1),6]=round(parametry6,4)
+  tabela.parametry[c(4,5,2,1),7]=round(parametry7,4)
+  tabela.parametry[c(4,5,1),8]=round(parametry.mle,4)
+  print(tabela.parametry)
+  
+  tabela.hesjan[c(3,2,1),1]=round(hesjan,4)
+  tabela.hesjan[c(4,2,1),2]=round(hesjan2,4)
+  tabela.hesjan[c(4,6,2,1),3]=round(hesjan3,4)
+  tabela.hesjan[c(4,6,7,2,1),4]=round(hesjan4,4)
+  tabela.hesjan[c(4,8,5,2,1),5]=round(hesjan5,4)
+  tabela.hesjan[c(4,5,3,2,1),6]=round(hesjan6,4)
+  tabela.hesjan[c(4,5,2,1),7]=round(hesjan7,4)
+  tabela.hesjan[c(4,5,1),8]=round(hesjan.mle,4)
+  print(tabela.hesjan)      
+  
+  
+  
+  
+  my.aik<-function(x,p) 2*p+2*x
+  my.bic<-function(x,p,t) log(t)*p+2*x
+  my.R<-function(x,p) 1-(x/(1200-1-p)/(var(y)))
+  
+  tabela.fit[1,1]=round(mean(KF(parametry)[2:n]),3)
+  tabela.fit[1,2]=round(mean(KF2(parametry2)[2:n]),3)
+  tabela.fit[1,3]=round(mean(KF3(parametry3)[2:n]),3)
+  tabela.fit[1,4]=round(mean(KF4(parametry4)[2:n]),3)
+  tabela.fit[1,5]=round(mean(KF5(parametry5)[2:n]),3)
+  tabela.fit[1,6]=round(mean(KF6(parametry6)[2:n]),3)
+  tabela.fit[1,7]=round(parametry7[2],3)
+  tabela.fit[1,8]=round(parametry.mle[2],3)
+  
+  tabela.fit[2,1]=round(sd(KF(parametry)[2:n]),3)
+  tabela.fit[2,2]=round(sd(KF2(parametry2)[2:n]),3)
+  tabela.fit[2,3]=round(sd(KF3(parametry3)[2:n]),3)
+  tabela.fit[2,4]=round(sd(KF4(parametry4)[2:n]),3)
+  tabela.fit[2,5]=round(sd(KF5(parametry5)[2:n]),3)
+  tabela.fit[2,6]=round(sd(KF6(parametry6)[2:n]),3)
+  tabela.fit[2,7]=0
+  tabela.fit[2,8]=0
+  
+  tabela.fit[3,1]=round(-log.KF1,3)
+  tabela.fit[3,2]=round(-log.KF2,3)
+  tabela.fit[3,3]=round(-log.KF3,3)
+  tabela.fit[3,4]=round(-log.KF4,3)
+  tabela.fit[3,5]=round(-log.KF5,3)
+  tabela.fit[3,6]=round(-log.KF6,3)
+  tabela.fit[3,7]=round(-log.KF7,3)
+  tabela.fit[3,8]=round(-log.mle,3)
+  
+  tabela.fit[4,1]=round(my.aik(log.KF1,3),3)
+  tabela.fit[4,2]=round(my.aik(log.KF2,3),3)
+  tabela.fit[4,3]=round(my.aik(log.KF3,3),3)
+  tabela.fit[4,4]=round(my.aik(log.KF4,4),3)
+  tabela.fit[4,5]=round(my.aik(log.KF5,5),3)
+  tabela.fit[4,6]=round(my.aik(log.KF6,5),3)
+  tabela.fit[4,7]=round(my.aik(log.KF7,4),3)
+  tabela.fit[4,8]=round(my.aik(log.mle,3),3)
+  
+  
+  tabela.fit[5,1]=round(my.bic(log.KF1,3,n),3)
+  tabela.fit[5,2]=round(my.bic(log.KF2,3,n),3)
+  tabela.fit[5,3]=round(my.bic(log.KF3,3,n),3)
+  tabela.fit[5,4]=round(my.bic(log.KF4,4,n),3)
+  tabela.fit[5,5]=round(my.bic(log.KF5,5,n),3)
+  tabela.fit[5,6]=round(my.bic(log.KF6,5,n),3)
+  tabela.fit[5,7]=round(my.bic(log.KF7,4,n),3)
+  tabela.fit[5,8]=round(my.bic(log.mle,3,n),3)
+  
+  
+  tabela.fit[6,1]=round(KF.err(parametry),4)
+  tabela.fit[6,2]=round(KF2.err(parametry2),4)
+  tabela.fit[6,3]=round(KF3.err(parametry3),4)
+  tabela.fit[6,4]=round(KF4.err(parametry4),4)
+  tabela.fit[6,5]=round(KF5.err(parametry5),4)
+  tabela.fit[6,6]=round(KF6.err(parametry6),4)
+  tabela.fit[6,7]=round(KF7.err(parametry7),4)
+  tabela.fit[6,8]=round(lm.err(parametry7),4)
+  
+  
+  tabela.fit[7,1]=round(my.R(KF.err(parametry),3),4)
+  tabela.fit[7,2]=round(my.R(KF2.err(parametry2),3),4)
+  tabela.fit[7,3]=round(my.R(KF3.err(parametry3),3),4)
+  tabela.fit[7,4]=round(my.R(KF4.err(parametry4),4),4)
+  tabela.fit[7,5]=round(my.R(KF5.err(parametry5),5),4)
+  tabela.fit[7,6]=round(my.R(KF6.err(parametry6),5),4)
+  tabela.fit[7,7]=round(my.R(KF7.err(parametry7),4),4)
+  tabela.fit[7,8]=round(my.R(lm.err(parametry.mle),3),4)
+  print(tabela.fit) 
+  
+  
+  
+  
+  if(testy==1){
+    #2 versus 5
+    LR2.5<-2*(log.KF2-log.KF5)
+    tablica.testy[1,1]=round(LR2.5,2)
+    if(LR2.5>0){
+      tablica.testy[1,2]=round(pchisq(LR2.5,df=2,lower.tail = FALSE),6)
+    }else tablica.testy[1,2]=0
+    
+    #  3 vesrus 5
+    LR3.5<-2*(log.KF3-log.KF5)
+    tablica.testy[2,1]=round(LR3.5,2)
+    if(LR3.5>0){
+      tablica.testy[2,2]=round(pchisq(LR3.5,df=1,lower.tail = FALSE),6)
+    } else tablica.testy[2,2]=0
+    
+    #  7 vesrus 5
+    LR7.5<-2*(log.KF7-log.KF5)
+    tablica.testy[3,1]=round(LR7.5,2)
+    if(LR7.5>0){
+      tablica.testy[3,2]=round(pchisq(LR7.5,df=1,lower.tail = FALSE),6)
+    }else tablica.testy[3,2]=0
+    
+    # 7 vresus lm 
+    LR7.lm<-2*(log.mle-log.KF7)
+    tablica.testy[4,1]=round(LR7.lm,2)
+    if(LR7.lm>0){
+      tablica.testy[4,2]=round(pchisq(LR7.lm,df=1,lower.tail = FALSE),6)
+    }else tablica.testy[4,2]=0
+    
+    # 5 vresus lm 
+    LR5.lm<-2*(log.mle-log.KF5)
+    tablica.testy[5,1]=round(LR5.lm,2)
+    if(LR5.lm>0){
+      tablica.testy[5,2]=round(pchisq(LR5.lm,df=2,lower.tail = FALSE),6)
+    } else tablica.testy[5,2]=0
+    
+    # 3 vresus 2
+    LR2.3<-2*(log.KF2-log.KF3)
+    tablica.testy[6,1]=round(LR2.3,2)
+    if( LR2.3>0){
+      tablica.testy[6,2]=round(pchisq(LR2.3,df=1,lower.tail = FALSE),6)
+    }else  tablica.testy[6,2]=0
+    
+    
+    # 3 vresus 4
+    LR3.4<-2*(KF3.log(parametry3)-KF4.log(parametry4))
+    tablica.testy[7,1]=round(LR3.4,2)
+    if(LR3.4>0){
+      tablica.testy[7,2]=round(pchisq(LR3.4,df=1,lower.tail = FALSE),6)
+    }else tablica.testy[7,2]=0
+    
+    # 5 vresus lm 
+    LR2.lm<-2*(log.mle-log.KF2)
+    tablica.testy[8,1]=round(LR2.lm,2)
+    if(LR2.lm>0){
+      tablica.testy[8,2]=round(pchisq(LR2.lm,df=2,lower.tail = FALSE),6)
+    } else tablica.testy[8,2]=0
+    
+ 
+ 
+    LR3.lm<-2*(log.mle-log.KF3)
+    round(LR3.lm,1)
+    round(pchisq(LR3.lm,df=2,lower.tail = FALSE),6)
+    LR4.lm<-2*(log.mle-log.KF4)
+    round(LR4.lm,2)
+    round(pchisq(LR4.lm,df=2,lower.tail = FALSE),6)    
+    LR5.lm<-2*(log.mle-log.KF5)
+    round(LR5.lm,2)
+    round(pchisq(LR5.lm,df=2,lower.tail = FALSE),6)
+    LR6.lm<-2*(log.mle-log.KF6)
+    round(LR6.lm,2)
+    round(pchisq(LR6.lm,df=2,lower.tail = FALSE),6)
+    LR7.lm<-2*(log.mle-log.KF7)
+    round(LR7.lm,1)
+    round(pchisq(LR7.lm,df=2,lower.tail = FALSE),6)
+    
+    
+  }
+  
+  
+  
+  
+  
+  if(rysunki==1){
+    
+    xx1<-seq(from=parametry[1]-.01,to=parametry[1]+.01,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF.log(c(z, parametry[2],parametry[3])))
+    plot(xx1, p1, type='l',main='SP1',xlab="sigma_alfa")
+    abline(v=parametry[1])
+    abline(h=-log.KF1)
+    
+    xx1<-seq(from=parametry[2]-0.1,to=parametry[2]+.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF.log(c(parametry[1], z,parametry[3])))
+    plot(xx1, p1, type='l',main='SP1',xlab="sigma_beta")
+    abline(v=parametry[2])
+    abline(h=-log.KF1)
+    
+    
+    xx1<-seq(from=parametry[3]-0.5,to=parametry[3]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF.log(c(parametry[1], parametry[2],z)))
+    plot(xx1, p1, type='l',main='SP1',xlab="sigma_epsilon")
+    abline(v=parametry[3])
+    abline(h=-log.KF1)
+    #################################################
+    
+    xx1<-seq(from=parametry2[1]-.05,to=parametry2[1]+.05,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF2.log(c(z, parametry2[2],parametry2[3])))
+    plot(xx1, p1, type='l', main='SP2',xlab="alfa")
+    abline(v=parametry2[1])
+    abline(h=-log.KF2)
+    
+    xx1<-seq(from=parametry2[2]-0.1,to=parametry2[2]+.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF2.log(c(parametry2[1], z,parametry2[3])))
+    plot(xx1, p1, type='l', main='SP2',xlab="sigma_beta")
+    abline(v=parametry2[2])
+    abline(h=-log.KF2)
+    
+    
+    xx1<-seq(from=parametry2[3]-0.5,to=parametry2[3]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF2.log(c(parametry2[1], parametry2[2],z)))
+    plot(xx1, p1, type='l', main='SP2',xlab="sigma_epsilon")
+    abline(v=parametry2[3])
+    abline(h=-log.KF2)
+    
+    #######################################
+    
+    xx1<-seq(from=parametry3[1]-.05,to=parametry3[1]+.05,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF3.log(c(z, parametry3[2],parametry3[3],parametry3[4])))
+    plot(xx1, p1, type='l', main='SP3',xlab="alfa")
+    abline(v=parametry3[1])
+    abline(h=-log.KF3)
+    
+    xx1<-seq(from=parametry3[2]-0.01,to=parametry3[2]+.01,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF3.log(c(parametry3[1], z,parametry3[3],parametry3[4])))
+    plot(xx1, p1, type='l', main='SP3',xlab="rho")
+    abline(v=parametry3[2])
+    abline(h=-log.KF3)
+    
+    xx1<-seq(from=parametry3[3]-0.1,to=parametry3[3]+.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF3.log(c(parametry3[1], parametry3[2],z,parametry3[4])))
+    plot(xx1, p1, type='l', main='SP3',xlab="sigma_beta")
+    abline(v=parametry3[3])
+    abline(h=-log.KF3)
+    
+    xx1<-seq(from=parametry3[4]-0.5,to=parametry3[4]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF3.log(c(parametry3[1], parametry3[2],parametry3[3],z)))
+    plot(xx1, p1, type='l', main='SP3',xlab="sigma_epsilon")
+    abline(v=parametry3[4])
+    abline(h=-log.KF3)
+    
+    #######################################
+    
+    xx1<-seq(from=parametry4[1]-.05,to=parametry4[1]+.05,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF4.log(c(z, parametry4[2],parametry4[3],parametry4[4],parametry4[5])))
+    plot(xx1, p1, type='l', main='SP4',xlab="alfa")
+    abline(v=parametry4[1])
+    abline(h=-log.KF4)
+    
+    xx1<-seq(from=parametry4[2]-0.01,to=parametry4[2]+.01,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF4.log(c(parametry4[1], z,parametry4[3],parametry4[4],parametry4[5])))
+    plot(xx1, p1, type='l', main='SP4',xlab="rho")
+    abline(v=parametry4[2])
+    abline(h=-log.KF4)
+    
+    xx1<-seq(from=parametry4[3]-0.1,to=parametry4[3]+.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF4.log(c(parametry4[1], parametry4[2],z,parametry4[4],parametry4[5])))
+    plot(xx1, p1, type='l', main='SP4',xlab="teta")
+    abline(v=parametry4[3])
+    abline(h=-log.KF4)
+    
+    
+    xx1<-seq(from=parametry4[4]-0.1,to=parametry4[4]+.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF4.log(c(parametry4[1], parametry4[2],parametry4[3],z,parametry4[5])))
+    plot(xx1, p1, type='l', main='SP4',xlab="sigma_beta")
+    abline(v=parametry4[4])
+    abline(h=-log.KF4)
+    
+    xx1<-seq(from=parametry4[5]-0.5,to=parametry4[5]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF4.log(c(parametry4[1], parametry4[2],parametry4[3],parametry4[4],z)))
+    plot(xx1, p1, type='l', main='SP4',xlab="sigma_epsilon")
+    abline(v=parametry4[5])
+    abline(h=-log.KF4)
+    
+    
+    #############################################
+    
+    xx1<-seq(from=parametry5[1]-.05,to=parametry5[1]+.05,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF5.log(c(z, parametry5[2],parametry5[3],parametry5[4],parametry5[5])))
+    plot(xx1, p1, type='l', main='SP5',xlab="alfa")
+    abline(v=parametry5[1])
+    abline(h=-log.KF5)
+    
+    xx1<-seq(from=parametry5[2]-0.1,to=parametry5[2]+.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF5.log(c(parametry5[1], z,parametry5[3],parametry5[4],parametry5[5])))
+    plot(xx1, p1, type='l', main='SP5',xlab="gamma")
+    abline(v=parametry5[2])
+    abline(h=-log.KF5)
+    
+    xx1<-seq(from=parametry5[3]-0.1,to=parametry5[3]+.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF5.log(c(parametry5[1], parametry5[2],z,parametry5[4],parametry5[5])))
+    plot(xx1, p1, type='l', main='SP5',xlab="beta")
+    abline(v=parametry5[3])
+    abline(h=-log.KF5)
+    
+    xx1<-seq(from=parametry5[4]-0.1,to=parametry5[4]+.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF5.log(c(parametry5[1], parametry5[2],parametry5[3],z,parametry5[5])))
+    plot(xx1, p1, type='l', main='SP5',xlab="sigma_beta")
+    abline(v=parametry5[4])
+    abline(h=-log.KF5)
+    
+    xx1<-seq(from=parametry5[5]-0.5,to=parametry5[5]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF5.log(c(parametry5[1], parametry5[2],parametry5[3],parametry5[4],z)))
+    plot(xx1, p1, type='l',main='SP5',xlab="sigma_epsilon")
+    abline(v=parametry5[5])
+    abline(h=-log.KF5)
+    
+    #############################################
+    
+    
+    xx1<-seq(from=parametry6[1]-.05,to=parametry6[1]+.05,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF6.log(c(z, parametry6[2],parametry6[3],parametry6[4],parametry6[5])))
+    plot(xx1, p1, type='l', main='SP6',xlab="alfa") 
+    abline(v=parametry6[1])
+    abline(h=-log.KF6)
+    
+    xx1<-seq(from=parametry6[2]-0.5,to=parametry6[2]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF6.log(c(parametry6[1], z,parametry6[3],parametry6[4],parametry6[5])))
+    plot(xx1, p1, type='l', main='SP6',xlab="beta")
+    abline(v=parametry6[2])
+    abline(h=-log.KF6)
+    
+    xx1<-seq(from=parametry6[3]-0.05,to=parametry6[3]+0.05,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF6.log(c(parametry6[1], parametry6[2],z,parametry6[4],parametry6[5])))
+    plot(xx1, p1, type='l', main='SP6',xlab="sigma_alfa")
+    abline(v=parametry6[3])
+    abline(h=-log.KF6)
+    
+    xx1<-seq(from=parametry6[4]-0.1,to=parametry6[4]+0.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF6.log(c(parametry6[1], parametry6[2],parametry6[3],z,parametry6[5])))
+    plot(xx1, p1, type='l', main='SP6',xlab="sigma_beta")
+    abline(v=parametry6[4])
+    abline(h=-log.KF6)
+    
+    xx1<-seq(from=parametry6[5]-0.5,to=parametry6[5]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF6.log(c(parametry6[1], parametry6[2],parametry6[3],parametry6[4],z)))
+    plot(xx1, p1, type='l',main='SP6',xlab="sigma_epsilon")
+    abline(v=parametry6[5])
+    abline(h=-log.KF6)
+    
+    ##################################################
+    
+    xx1<-seq(from=parametry7[1]-.05,to=parametry7[1]+.05,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF7.log(c(z, parametry7[2],parametry7[3],parametry7[4])))
+    plot(xx1, p1, type='l', main='SP7',xlab="alfa")
+    abline(v=parametry7[1])
+    abline(h=-log.KF7)
+    
+    xx1<-seq(from=parametry7[2]-0.5,to=parametry7[2]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF7.log(c(parametry7[1], z,parametry7[3],parametry7[4])))
+    plot(xx1, p1, type='l', main='SP7',xlab="beta")
+    abline(v=parametry7[2])
+    abline(h=-log.KF7)
+    
+    xx1<-seq(from=parametry7[3]-0.1,to=parametry7[3]+0.1,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF7.log(c(parametry7[1], parametry7[2],z,parametry7[4])))
+    plot(xx1, p1, type='l', main='SP7',xlab="sigma_beta")
+    abline(v=parametry7[3])
+    abline(h=-log.KF7)
+    
+    xx1<-seq(from=parametry7[4]-0.5,to=parametry7[4]+0.5,length.out = 100)
+    p1<-sapply(xx1, function(z)  -KF7.log(c(parametry7[1], parametry7[2],parametry7[3],z)))
+    plot(xx1, p1, type='l',main='SP7',xlab="sigma_epsilon")
+    abline(v=parametry7[4])
+    abline(h=-log.KF7)
+  }
+  
+  
+  rtf<-RTF("wyniki.doc")   
+  addTable(rtf,tabela.parametry)
+  addTable(rtf,tabela.hesjan)
+  addTable(rtf,tabela.fit)
+  if(testy==1) addTable(rtf,tablica.testy,row.names=T)
+  done(rtf)
+  
+  plot(KF2(parametry2),col='blue',type='l',lty=2,
+       ylab=expression(beta),xlab='czas',main='b')
+  lines( beta.var$coefficients[,2] ,col='black')
+  lines(KF5(parametry5),col='orange',lty=5)
+  lines(KF6(parametry6),col='darkgreen',lty=3)
+ # legend(x=1000, y=1.74, legend=c('roll OLS','SP1','SP5','SP7'),
+ #        lty=c(1,2,5,3), col=c('black','blue','orange','darkgreen'))
+ 
+  #KMNK
+  print(summary(lm(y~x))) 

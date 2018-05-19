@@ -2,7 +2,7 @@ library(pomp)
 library(beepr)
 library(doParallel)
 library(doSNOW)
-
+library(quantmod)
 
 #rm(list = ls())
 setwd("C:/Users/user/Documents/github/Time-varying-beta-with-stochastic-volatility/Dane")
@@ -30,10 +30,12 @@ plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
 par(mfrow=c(1,1))
 
 
+
+
 ####nazwy
-beta_statenames <- c("H","R_i","Beta","Alpha")
-beta_rp_names <- c("mu_h","phi","sigma_eta","sigma_ksi","sigma_gamma")
-beta_ivp_names <- c("Beta_0","H_0","Alpha_0")
+beta_statenames <- c("H","R_i","Beta")
+beta_rp_names <- c("mu_h","phi","sigma_eta","sigma_ksi","alpha","mu_beta","nu")
+beta_ivp_names <- c("Beta_0","H_0")
 beta_paramnames <- c(beta_rp_names,beta_ivp_names)
 beta_covarnames <- c("R_i_dane","R_M")
 
@@ -42,18 +44,15 @@ beta_covarnames <- c("R_i_dane","R_M")
 rproc1 <- "
 double omega;
 double ksi;
-double gamma;
 omega = rnorm(0,sigma_eta );
 ksi= rnorm(0,sigma_ksi );
-gamma= rnorm(0,sigma_gamma );
-Beta=Beta+ksi;
-Alpha=Alpha+gamma;
+Beta=mu_beta*(1 - nu)+nu*Beta+ksi;
 H = mu_h*(1 - phi) + phi*H + omega;
 "
 
 ####rownanie procesu pomiaru
 rproc2.sim <- "
-R_i = rnorm( Alpha+Beta*R_M,exp(H/2) );
+R_i = rnorm( alpha+Beta*R_M,exp(H/2) );
 "
 ###do wypelniania danych
 rproc2.filt <- "
@@ -72,8 +71,7 @@ beta_rproc.filt <- paste(rproc1,rproc2.filt)
 beta_initializer <- "
 Beta=Beta_0;
 H = H_0 ;
-Alpha=Alpha_0;
-R_i = rnorm(Alpha+Beta*R_M,exp(H/2) );
+R_i = rnorm(alpha+Beta*R_M,exp(H/2) );
 "
 ###????
 beta_rmeasure <- "
@@ -82,7 +80,7 @@ y=R_i;
 
 ####rozk?ad warunkowy zmiennej Y
 beta_dmeasure <- "
-lik=dnorm(y,Alpha+Beta*R_M,exp(H/2),give_log);
+lik=dnorm(y,alpha+Beta*R_M,exp(H/2),give_log);
 "
 
 
@@ -90,15 +88,15 @@ lik=dnorm(y,Alpha+Beta*R_M,exp(H/2),give_log);
 beta_toEstimationScale <- "
 Tsigma_eta = log(sigma_eta);
 Tsigma_ksi = log(sigma_ksi);
-Tsigma_gamma = log(sigma_gamma);
 Tphi = logit(phi);
+Tnu = logit(nu);
 "
 
 beta_fromEstimationScale <- "
 Tsigma_eta = exp(sigma_eta);
 Tsigma_ksi = exp(sigma_ksi);
-Tsigma_gamma = exp(sigma_gamma);
 Tphi = expit(phi);
+Tnu = expit(nu);
 "
 
 
@@ -123,6 +121,7 @@ beta.filt <- pomp(data=data.frame(y=as.vector(y),
 
 plot(beta.filt)
 
+
 #parametry
 mu = -0.5
 phi = 0.98
@@ -133,9 +132,10 @@ params_test <- c(
   phi = phi,     
   sigma_eta =sigma,
   sigma_ksi=sigma,
-  sigma_gamma=sigma,
-  Beta_0=1.5,
-  Alpha_0=0.5,  
+  alpha=0,
+  Beta_0=0.5,
+  nu=phi,
+  mu_beta=mu,
   H_0=0
 )
 
@@ -145,7 +145,6 @@ pf1 <- pfilter(beta.filt,params=params_test,
 
 
 plot(pf1)
-
 
 
 
@@ -175,10 +174,11 @@ beta_box <- rbind(
   sigma_eta=c(0.1,1),
   phi    = c(0.9,0.99),
   mu_h = c(-1,1),
+  mu_beta = c(-1,1),
   sigma_ksi=c(0.1,1),
-  sigma_gamma=c(0.1,1),
+  alpha=c(-0.1,0.1),
+  nu= c(0.9,0.99),
   Beta_0=c(0,1),
-  Alpha_0=c(0,1),  
   H_0=c(-1,1)
 )
 
@@ -200,9 +200,10 @@ t.beta.box <- system.time({
                  phi       = beta_rw.sd_rp,
                  sigma_eta = beta_rw.sd_rp,
                  sigma_ksi = beta_rw.sd_rp,
-                 sigma_gamma = beta_rw.sd_rp,
+                 alpha=beta_rw.sd_rp,
+                 mu_beta      = beta_rw.sd_rp,
+                 nu      = beta_rw.sd_rp,
                  Beta_0       = ivp(beta_rw.sd_ivp),
-                 Alpha_0      = ivp(beta_rw.sd_ivp),
                  H_0       = ivp(beta_rw.sd_ivp)
                )
     )
@@ -230,6 +231,7 @@ end_time - start_time
 beep(2)
 plot(if.beta.box )
 
+
 r.box <- data.frame(logLik=L.beta.box [,1],logLik_se=L.beta.box [,2],t(sapply(if.beta.box,coef)))
 round(apply(as.matrix(r.box),MARGIN=2, FUN=mean ),4)
 round(r.box [which.max(r.box $logLik),],4)
@@ -237,11 +239,12 @@ round(r.box [which.max(r.box $logLik),],4)
 
 params_nowe2<- c(
   mu_h        = as.numeric(r.box [which.max(r.box $logLik),'mu_h']),    
-  phi         = as.numeric(r.box [which.max(r.box $logLik),'phi']),    
+  phi         = as.numeric(r.box [which.max(r.box $logLik),'phi']),   
+  nu        = as.numeric(r.box [which.max(r.box $logLik),'nu']), 
   sigma_eta   = as.numeric(r.box [which.max(r.box $logLik),'sigma_eta']), 
   sigma_ksi   = as.numeric(r.box [which.max(r.box $logLik),'sigma_ksi']), 
-  sigma_gamma   = as.numeric(r.box [which.max(r.box $logLik),'sigma_gamma']),  
-  Alpha_0        = as.numeric(r.box [which.max(r.box $logLik),'Alpha_0']),
+  mu_beta      = as.numeric(r.box [which.max(r.box $logLik),'mu_beta']),
+  alpha       = as.numeric(r.box [which.max(r.box $logLik),'alpha']),
   Beta_0       = as.numeric(r.box [which.max(r.box $logLik),'Beta_0']),
   H_0       = as.numeric(r.box [which.max(r.box $logLik),'H_0'])
 )
@@ -253,21 +256,17 @@ par(mfrow=c(1,1))
 plot(exp(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])]/2),type='l')
 plot(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="H")
 plot(pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="Beta")
-plot(pf1@filter.traj[4,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="Alpha")
+
+wersja3=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
+wersja3=as.xts(wersja3,order.by = index(x))
 
 
-
-
-wersja2=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
-wersja2=as.xts(wersja2,order.by = index(x))
 
 par(mfrow=c(3,1))
 plot(x,main='WIG',major.ticks = "years",grid.ticks.on = "years")
 plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
-plot(wersja2,main=expression(beta),major.ticks = "years",grid.ticks.on = "years")
+plot(wersja3,main=expression(beta),major.ticks = "years",grid.ticks.on = "years")
 par(mfrow=c(1,1))
-
-
 
 
 
@@ -284,9 +283,10 @@ L.beta.log<- foreach(i=1:length(xx1) ,.packages='pomp', .export = "betalist",.co
                                                          phi=as.numeric(params_nowe2['phi']),
                                                          sigma_eta=as.numeric(params_nowe2['sigma_eta']),
                                                          sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
-                                                         sigma_gamma =as.numeric(params_nowe2['sigma_gamma']),
+                                                         nu =as.numeric(params_nowe2['nu']),
+                                                         mu_beta=as.numeric(params_nowe2['mu_beta']),
                                                          Beta_0=as.numeric(params_nowe2['Beta_0']),
-                                                         Alpha_0=as.numeric(params_nowe2['Alpha_0']),
+                                                         alpha=as.numeric(params_nowe2['alpha']),
                                                          H_0=as.numeric(params_nowe2['H_0'])),
                                       Np=betalist[[1]][run_level] ))
                      }
@@ -316,9 +316,10 @@ L.beta.log2<- foreach(i=1:length(xx2) ,.packages='pomp', .export = "betalist",.c
                                                           phi=as.numeric(xx2[i]), 
                                                           sigma_eta=as.numeric(params_nowe2['sigma_eta']),
                                                           sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
-                                                          sigma_gamma =as.numeric(params_nowe2['sigma_gamma']),
+                                                          nu =as.numeric(params_nowe2['nu']),
+                                                          mu_beta=as.numeric(params_nowe2['mu_beta']),
                                                           Beta_0=as.numeric(params_nowe2['Beta_0']),
-                                                          Alpha_0=as.numeric(params_nowe2['Alpha_0']),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
                                                           H_0=as.numeric(params_nowe2['H_0'])),
                                        Np=betalist[[1]][run_level] ))
                       }
@@ -348,9 +349,10 @@ L.beta.log3<- foreach(i=1:length(xx3) ,.packages='pomp', .export = "betalist",.c
                                                           phi=as.numeric(params_nowe2['phi']),
                                                           sigma_eta=xx3[i],
                                                           sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
-                                                          sigma_gamma =as.numeric(params_nowe2['sigma_gamma']),
+                                                          nu =as.numeric(params_nowe2['nu']),
+                                                          mu_beta=as.numeric(params_nowe2['mu_beta']),
                                                           Beta_0=as.numeric(params_nowe2['Beta_0']),
-                                                          Alpha_0=as.numeric(params_nowe2['Alpha_0']),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
                                                           H_0=as.numeric(params_nowe2['H_0'])),
                                        Np=betalist[[1]][run_level] ))
                       }
@@ -368,6 +370,7 @@ abline(v=params_nowe2['sigma_eta'],lty=2)
 beep(2)
 
 
+
 #parametr sigma_ksi
 xx4<-seq(from=0.01,to=.025,length.out = 100)
 detectCores()
@@ -380,9 +383,10 @@ L.beta.log4<- foreach(i=1:length(xx4) ,.packages='pomp', .export = "betalist",.c
                                                           phi=as.numeric(params_nowe2['phi']),
                                                           sigma_eta=as.numeric(params_nowe2['sigma_eta']),
                                                           sigma_ksi =xx4[i],
-                                                          sigma_gamma =as.numeric(params_nowe2['sigma_gamma']),
+                                                          nu =as.numeric(params_nowe2['nu']),
+                                                          mu_beta=as.numeric(params_nowe2['mu_beta']),
                                                           Beta_0=as.numeric(params_nowe2['Beta_0']),
-                                                          Alpha_0=as.numeric(params_nowe2['Alpha_0']),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
                                                           H_0=as.numeric(params_nowe2['H_0'])),
                                        Np=betalist[[1]][run_level] ))
                       }
@@ -401,8 +405,8 @@ beep(2)
 
 
 
-#parametr sigma_gamma
-xx5<-seq(from=.0001,to=.01,length.out = 100)
+#parametr alpha
+xx5<-seq(from=-.1,to=.1,length.out = 100)
 detectCores()
 cl <- makeCluster(3, type = "SOCK")
 registerDoSNOW(cl)
@@ -412,10 +416,11 @@ L.beta.log5<- foreach(i=1:length(xx5) ,.packages='pomp', .export = "betalist",.c
                         logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
                                                           phi=as.numeric(params_nowe2['phi']),
                                                           sigma_eta=as.numeric(params_nowe2['sigma_eta']),
-                                                          sigma_gamma=xx5[i],
                                                           sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                          nu =as.numeric(params_nowe2['nu']),
+                                                          mu_beta=as.numeric(params_nowe2['mu_beta']),
                                                           Beta_0=as.numeric(params_nowe2['Beta_0']),
-                                                          Alpha_0=as.numeric(params_nowe2['Alpha_0']),
+                                                          alpha=xx5[i],
                                                           H_0=as.numeric(params_nowe2['H_0'])),
                                        Np=betalist[[1]][run_level] ))
                       }
@@ -424,13 +429,15 @@ stopCluster(cl)
 
 
 
-plot(xx5, L.beta.log5, type='l',xlab=expression(sigma[gamma]),ylab="logLik")
+plot(xx5, L.beta.log5, type='l',xlab=expression(alpha),ylab="logLik")
 points(xx5, L.beta.log5)
-points(r.box[,'sigma_gamma'], r.box[,'logLik'] ,col='red')
+points(r.box[,'alpha'], r.box[,'logLik'] ,col='red')
 p5=loess(L.beta.log5~xx5,span=0.5)
 lines(xx5,p5$fitted,col='blue',lwd=2)
-abline(v=params_nowe2['sigma_gamma'],lty=2)
+abline(v=params_nowe2['alpha'],lty=2)
 beep(2)
+
+
 
 
 
@@ -445,10 +452,11 @@ L.beta.log6<- foreach(i=1:length(xx6) ,.packages='pomp', .export = "betalist",.c
                         logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
                                                           phi=as.numeric(params_nowe2['phi']),
                                                           sigma_eta=as.numeric(params_nowe2['sigma_eta']),
-                                                          sigma_gamma =as.numeric(params_nowe2['sigma_gamma']),
                                                           sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                          nu =as.numeric(params_nowe2['nu']),
+                                                          mu_beta=as.numeric(params_nowe2['mu_beta']),
                                                           Beta_0=xx6[i],
-                                                          Alpha_0=as.numeric(params_nowe2['Alpha_0']),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
                                                           H_0=as.numeric(params_nowe2['H_0'])),
                                        Np=betalist[[1]][run_level] ))
                       }
@@ -477,10 +485,11 @@ L.beta.log7<- foreach(i=1:length(xx7) ,.packages='pomp', .export = "betalist",.c
                         logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
                                                           phi=as.numeric(params_nowe2['phi']),
                                                           sigma_eta=as.numeric(params_nowe2['sigma_eta']),
-                                                          sigma_gamma =as.numeric(params_nowe2['sigma_gamma']),
                                                           sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                          nu =as.numeric(params_nowe2['nu']),
+                                                          mu_beta=as.numeric(params_nowe2['mu_beta']),
                                                           Beta_0=as.numeric(params_nowe2['Beta_0']),
-                                                          Alpha_0=as.numeric(params_nowe2['Alpha_0']),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
                                                           H_0=xx7[i]),
                                        Np=betalist[[1]][run_level] ))
                       }
@@ -500,23 +509,23 @@ beep(2)
 
 
 
-
-#parametr Alpha_0
-xx8<-seq(from=-.1,to=.5,length.out = 100)
+#parametr nu
+xx9<-seq(from=.8,to=.99,length.out = 100)
 detectCores()
 cl <- makeCluster(3, type = "SOCK")
 registerDoSNOW(cl)
-L.beta.log8<- foreach(i=1:length(xx8) ,.packages='pomp', .export = "betalist",.combine=rbind,
+L.beta.log9<- foreach(i=1:length(xx5) ,.packages='pomp', .export = "betalist",.combine=rbind,
                       .options.multicore=list(set.seed=TRUE)) %dopar% {
                         set.seed(87932)
                         logLik(pfilter(beta.filt,params=c(mu_h=as.numeric(params_nowe2['mu_h']), 
                                                           phi=as.numeric(params_nowe2['phi']),
                                                           sigma_eta=as.numeric(params_nowe2['sigma_eta']),
-                                                          sigma_gamma =as.numeric(params_nowe2['sigma_gamma']),
                                                           sigma_ksi =as.numeric(params_nowe2['sigma_ksi']),
+                                                          nu =as.numeric(params_nowe2['nu']),
+                                                          mu_beta=xx9[i],
                                                           Beta_0=as.numeric(params_nowe2['Beta_0']),
-                                                          Alpha_0=xx7[i],
-                                                          H_0=as.numeric(params_nowe2['Alpha_0'])),
+                                                          alpha=as.numeric(params_nowe2['alpha']),
+                                                          H_0=as.numeric(params_nowe2['H_0'])),
                                        Np=betalist[[1]][run_level] ))
                       }
 
@@ -524,13 +533,10 @@ stopCluster(cl)
 
 
 
-plot(xx8, L.beta.log8, type='l',xlab=expression(alpha[0]),ylab="logLik")
-points(xx8, L.beta.log8)
-points(r.box[,'H_0'], r.box[,'logLik'] ,col='red')
-p8=loess(L.beta.log8~xx8,span=0.5)
-lines(xx8,p8$fitted,col='blue',lwd=2)
-abline(v=params_nowe2['Alpha_0'],lty=2)
-
+plot(xx9, L.beta.log9, type='l',xlab=expression(nu),ylab="logLik")
+points(xx9, L.beta.log9)
+points(r.box[,'mu_beta'], r.box[,'logLik'] ,col='red')
+p9=loess(L.beta.log9~xx9,span=0.5)
+lines(xx9,p9$fitted,col='blue',lwd=2)
+abline(v=params_nowe2['mu_beta'],lty=2)
 beep(2)
-
-

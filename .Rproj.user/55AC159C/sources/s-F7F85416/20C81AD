@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1526673317945.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3833898369",
+    "id" : "20C81AD",
+    "lastKnownWriteTime" : 1526674545,
+    "last_content_update" : 1526674545252,
+    "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/KF RW beta.R",
+    "project_path" : "Skrypty do R/KF RW beta.R",
+    "properties" : {
+        "cursorPosition" : "85,0",
+        "scrollLine" : "24",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

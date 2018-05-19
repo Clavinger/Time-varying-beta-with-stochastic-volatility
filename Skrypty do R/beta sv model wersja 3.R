@@ -2,7 +2,7 @@ library(pomp)
 library(beepr)
 library(doParallel)
 library(doSNOW)
- 
+library(quantmod)
 
 #rm(list = ls())
 setwd("C:/Users/user/Documents/github/Time-varying-beta-with-stochastic-volatility/Dane")
@@ -406,7 +406,7 @@ beep(2)
 
 
 #parametr alpha
-xx5<-seq(from=.1,to=.1,length.out = 100)
+xx5<-seq(from=-.1,to=.1,length.out = 100)
 detectCores()
 cl <- makeCluster(3, type = "SOCK")
 registerDoSNOW(cl)

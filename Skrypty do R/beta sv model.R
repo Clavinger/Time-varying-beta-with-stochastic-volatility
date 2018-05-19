@@ -2,6 +2,7 @@ library(pomp)
 library(beepr)
 library(doParallel)
 library(doSNOW)
+library(quantmod)
 
 #rm(list = ls())
 setwd("C:/Users/user/Documents/github/Time-varying-beta-with-stochastic-volatility/Dane")

@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1526673489751.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3590932351",
+    "id" : "E1FF5AF5",
+    "lastKnownWriteTime" : 1523486312,
+    "last_content_update" : 1523486312,
+    "path" : "C:/Users/user/Dropbox/phd/Wyniki/bzw_m.R",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "211,26",
+        "scrollLine" : "200"
+    },
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

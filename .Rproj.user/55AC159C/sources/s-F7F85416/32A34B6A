@@ -5,15 +5,15 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "0",
+    "hash" : "1150904620",
     "id" : "32A34B6A",
     "lastKnownWriteTime" : 1526644505,
     "last_content_update" : 1526644505227,
     "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/Tworzenie bazy danych zwrotow logarytmicznych.R",
     "project_path" : "Skrypty do R/Tworzenie bazy danych zwrotow logarytmicznych.R",
     "properties" : {
-        "cursorPosition" : "62,32",
-        "scrollLine" : "44"
+        "cursorPosition" : "13,0",
+        "scrollLine" : "0"
     },
     "relative_order" : 3,
     "source_on_save" : false,

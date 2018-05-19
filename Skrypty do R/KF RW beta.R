@@ -1,0 +1,85 @@
+library("FKF")
+library(quantmod)
+
+#rm(list = ls())
+setwd("C:/Users/user/Documents/github/Time-varying-beta-with-stochastic-volatility/Dane")
+
+
+#sciaganie danych
+baza.danych.zwroty=read.csv.zoo("baza_danych_zwroty.csv",sep=',')
+baza.danych.zwroty=as.xts(baza.danych.zwroty)
+wig.zwroty=read.csv.zoo("wig_zwroty_sub.csv",sep=',')
+wig.zwroty=as.xts(wig.zwroty)
+
+
+#wybór tickera
+tiker='PKO'
+
+y=baza.danych.zwroty[,tiker]
+y=y[-1]
+x=wig.zwroty
+
+n=length(x)
+
+par(mfrow=c(2,1))
+plot(x,main='WIG',major.ticks = "years",grid.ticks.on = "years")
+plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
+par(mfrow=c(1,1))
+
+kmnk<-lm(y~x)
+
+
+OUss2 <- function(alpha, sigma.beta, epsilon){
+  Tt <- diag(1)
+  Zt <-array(0,dim=c(1,1,n))
+  for(i in 1:n) Zt[,,i]=as.numeric(x[i])
+  ct <- matrix(c(alpha),ncol=1)
+  dt <- matrix(c(0), nrow = 1)
+  GGt<- matrix(data=c(epsilon^2),nrow = 1,ncol=1)
+  HHt<- matrix(data=c(sigma.beta^2),nrow=1,ncol=1)
+  a0 <- kmnk$coefficients[2]
+  P0 <- matrix(data=c(0),nrow=1,ncol=1)
+  return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+              HHt = HHt))
+  
+}
+
+KF2 <- function(theta) {
+  sp <- OUss2(theta[1], theta[2], theta[3])
+  ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+             Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(as.vector(y), nrow=1,ncol=n))
+  return(ans$att[1,])
+}
+
+KF2.log <- function(theta) {
+  sp <- OUss2(theta[1], theta[2], theta[3])
+  ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+             Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(as.vector(y), nrow=1,ncol=n))
+  return(-ans$logLik)
+}
+
+KF2.err <- function(theta) {
+  sp <- OUss2(theta[1], theta[2], theta[3] )
+  ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+             Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt,yt =matrix(as.vector(y), nrow=1,ncol=n))
+  return(sum(ans$vt[1,]^2))
+}
+
+
+KF2.opt<-optim(c(0.005,.1,1.1),KF2.log, 
+               method="L-BFGS-B",hessian = T,lower = c(-Inf,0,0))
+parametry2<-KF2.opt$par
+hesjan2=sqrt(diag(solve(KF2.opt$hessian)))
+log.KF2<-KF2.opt$value
+print("SP2:")
+print(round(parametry2,4))
+print(round(hesjan2,4))  
+print(round(-log.KF2,3))
+
+
+KF.RW=as.xts(KF2(parametry2),order.by = index(x))
+par(mfrow=c(3,1))
+plot(x,main='WIG',major.ticks = "years",grid.ticks.on = "years")
+plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
+plot(KF.RW,main=expression(beta),major.ticks = "years",grid.ticks.on = "years")
+par(mfrow=c(1,1))

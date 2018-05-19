@@ -258,13 +258,13 @@ plot(pf1@filter.traj[4,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="Alpha")
 
 
 
-wersja2=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
-wersja2=as.xts(wersja2,order.by = index(x))
+wersja1=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
+wersja1=as.xts(wersja1,order.by = index(x))
 
 par(mfrow=c(3,1))
 plot(x,main='WIG',major.ticks = "years",grid.ticks.on = "years")
 plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
-plot(wersja2,main=expression(beta),major.ticks = "years",grid.ticks.on = "years")
+plot(wersja1,main=expression(beta),major.ticks = "years",grid.ticks.on = "years")
 par(mfrow=c(1,1))
 
 

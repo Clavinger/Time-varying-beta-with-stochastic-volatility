@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1526733218933.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1642038499",
+    "id" : "2D5B90E6",
+    "lastKnownWriteTime" : 1526673803,
+    "last_content_update" : 1526673803,
+    "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/beta sv model wersja 3.R",
+    "project_path" : "Skrypty do R/beta sv model wersja 3.R",
+    "properties" : {
+        "cursorPosition" : "270,0",
+        "scrollLine" : "252"
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

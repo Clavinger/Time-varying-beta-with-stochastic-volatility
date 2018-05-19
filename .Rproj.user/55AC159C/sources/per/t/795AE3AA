@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1526732852701.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1332559532",
+    "id" : "795AE3AA",
+    "lastKnownWriteTime" : 1526733670,
+    "last_content_update" : 1526733670543,
+    "path" : "~/github/Time-varying-beta-with-stochastic-volatility/Skrypty do R/Przykład empiryczny w jednym pliku.R",
+    "project_path" : "Skrypty do R/Przykład empiryczny w jednym pliku.R",
+    "properties" : {
+        "cursorPosition" : "837,25",
+        "scrollLine" : "819",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

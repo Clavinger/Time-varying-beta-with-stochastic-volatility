@@ -144,7 +144,7 @@ legend(x='topleft',legend = c('true','filtered'),
 
 
 ###trzy szybkosci filtru: 1 -szybki, 2 -sredni, 3 - wolny
-run_level <- 3
+run_level <- 2
 
 #liczba czasteczek
 beta_Np <-          c(1000,1e3,1e3)
@@ -244,9 +244,9 @@ params_nowe2<- c(
 pf1 <- pfilter(beta.filt,params=params_nowe2,
                Np=betalist[[1]][run_level],filter.traj=T)
 
-wersja1=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
-wersja1=as.xts(wersja1,order.by = index(x))
-length(wersja1)
+wersja2=pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])]
+wersja2=as.xts(wersja2,order.by = index(x))
+ 
 
 plot(exp(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])]/2),type='l')
 plot(pf1@filter.traj[1,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="H")
@@ -255,7 +255,7 @@ plot(pf1@filter.traj[3,1,2:(dim(pf1@filter.traj)[3])],type='l',ylab="Beta")
 par(mfrow=c(3,1))
 plot(x,main='WIG',major.ticks = "years",grid.ticks.on = "years")
 plot(y,main=tiker,major.ticks = "years",grid.ticks.on = "years")
-plot(wersja1,main=expression(beta),major.ticks = "years",grid.ticks.on = "years")
+plot(wersja2,main=expression(beta),major.ticks = "years",grid.ticks.on = "years")
 par(mfrow=c(1,1))
  
 
